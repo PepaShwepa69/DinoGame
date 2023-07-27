@@ -6,10 +6,14 @@ import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+
+import java.util.ArrayList;
+import java.util.List;
 
 class Dino {
 
@@ -24,19 +28,14 @@ class Dino {
 
     private final int jumpHeight = 100;
     private int jumpInterval = 1;
-    private boolean fallDown = false;
 
     public boolean jump() {
         if (y >= jumpHeight) {
-            fallDown = true;
-        }
-        if (fallDown) {
             jumpInterval *= -1;
-            fallDown = false;
         }
         y += jumpInterval;
         if (y == 0) {
-            jumpInterval *= -1;
+            jumpInterval*= -1;
             return true;
         }
         return false;
@@ -68,10 +67,13 @@ public class DinoGame extends Application {
         Timeline tl = new Timeline(new KeyFrame(Duration.millis(3), e -> run(gc, alexander)));
         tl.setCycleCount(Timeline.INDEFINITE);
 
-        canvas.setOnMouseClicked(e -> jumpFinished = false);
-
         StackPane root = new StackPane(canvas);
         Scene scene = new Scene(root);
+
+        scene.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.SPACE) jumpFinished = false;
+        });
+
         primaryStage.setTitle("Dino");
         primaryStage.setScene(scene);
         primaryStage.setResizable(false);
@@ -88,26 +90,38 @@ public class DinoGame extends Application {
     private int frames = 0;
     private Cactus cactus = new Cactus();
     private boolean alive = true;
+    private int interval;
+    private List<Cactus> cacti = new ArrayList();
+    private boolean removeCactus = false;
 
     private void run(GraphicsContext gc, Dino dino) {
         if (alive) {
+            if (frames == 0) {
+                cacti.add(new Cactus());
+                interval = (int) ((Math.random() * (800 - 250)) + 250);
+            }
             frames++;
-            if (frames >= 640 + cactus.width) {
+            if (frames >= interval) {
                 frames = 0;
-                cactus = new Cactus();
             }
 
             gc.setFill(Color.WHITE);
             gc.fillRect(0, 0, 640, 480);
-            
-            renderGround(gc);
-            cactus.render(gc);
-            dino.render(gc);
 
-            if ((640 - cactus.x + cactus.width) < (150 + dino.width) && (640 - cactus.x) > 150 && dino.y < cactus.height) {
-                alive = false;
-                frames = 0;
+            renderGround(gc);
+            for (Cactus c : cacti) {
+                c.render(gc);
+                if ((640 - c.x) < (150 + dino.width) && (640 - c.x + c.width) > 150 && dino.y < c.height) {
+                    alive = false;
+                    frames = 0;
+                }
+                if (640 - c.x < -c.width) removeCactus = true;
             }
+            if (removeCactus) {
+                cacti.remove(0);
+                removeCactus = false;
+            }
+            dino.render(gc);
 
             if (!jumpFinished) {
                 jumpFinished = dino.jump();
@@ -115,9 +129,11 @@ public class DinoGame extends Application {
         } else {
             gc.setFill(Color.RED);
             gc.fillRect(0, 0, 640, 480);
-            
+
             frames++;
-            if (frames >= 666) System.exit(0);
+            if (frames >= 666) {
+                System.exit(0);
+            }
         }
     }
 
